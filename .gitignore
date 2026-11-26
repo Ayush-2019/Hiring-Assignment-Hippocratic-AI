@@ -1,0 +1,20 @@
+# Environment file that holds the API key
+.env
+
+# Python bytecode cache folders
+__pycache__/
+
+# Compiled Python files
+*.pyc
+
+# Virtual environment folder
+venv/
+
+# Alternative virtual environment folder name
+.venv/
+
+# VS Code editor settings
+.vscode/
+
+# macOS system files
+.DS_Store
