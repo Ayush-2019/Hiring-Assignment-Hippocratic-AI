@@ -14,91 +14,84 @@ If I could spend more time on this project, I would focus on a few enhancements:
 
 """
 
-# Load API key from environment variable
-api_key = os.environ["ANTHROPIC_API_KEY"]
+# Create the Anthropic client using the API key from the environment
+client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-# Define function to call Anthropic Claude API
-def call_claude(messages: List[Dict], model="claude-v1.3-haiku-5.5", max_tokens=2000) -> str:
-    client = anthropic.Client(api_key)
-    resp = client.chat_completion(
-        prompt=anthropic.HUMAN_PROMPT,
-        messages=messages, 
-        model=model,
-        max_tokens_to_sample=max_tokens,
+# Send a prompt to Claude and return the text of its reply
+def call_claude(prompt: str, max_tokens=2000) -> str:
+    resp = client.messages.create(
+        model="claude-haiku-5-5",
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
     )
-    return resp.completion
+    return resp.content[0].text
 
-# Define function to get story request from user
+# Ask the user what kind of story they want
 def get_story_request() -> str:
     print("Hi there! I can tell you a bedtime story. What kind of story would you like to hear?")
     return input("> ")
 
-# Define function to generate story based on request
+# Write the first draft of the story
 def generate_story(request: str) -> str:
-    story_prompt = f"""
-You are a children's story writer. Your task is to write an engaging bedtime story 
-based on the following request:
+    prompt = f"""
+You are a children's story writer. Write an engaging bedtime story for this request:
 
 {request}
 
 The story should:
-- Be appropriate for children ages 5-10 
+- Be appropriate for children ages 5-10
 - Have a clear beginning, middle, and end
 - Teach a positive lesson or moral
 - Use creative description to spark the imagination
 - Have the tone and style of a classic fairy tale
-
-Story:
 """
-    story = call_claude([{"role": "system", "content": story_prompt}])
-    return story
+    return call_claude(prompt)
 
-# Define function to get feedback from Claude judge
+# Have the judge critique the story
 def get_judge_feedback(story: str) -> str:
-    judge_prompt = f"""
-You are an editor evaluating a children's bedtime story for quality. 
-Please provide constructive feedback on the following story:
+    prompt = f"""
+You are an editor evaluating a children's bedtime story for ages 5-10.
 
 {story}
 
-Evaluate the story on:
-- Age-appropriateness for 5-10 year olds
-- Story structure and completeness 
-- Vividness of description 
-- Positive lesson or moral
-- Overall engagement and quality
-
-Provide specific suggestions for improvement if applicable.
-
-Feedback:
+Give short, specific feedback on age-appropriateness, structure, imagery,
+the moral, and overall engagement. List the top fixes needed.
 """
-    feedback = call_claude([{"role": "system", "content": judge_prompt}])
-    return feedback
+    return call_claude(prompt)
 
-# Define function to ask user if they want to regenerate
-def get_user_regen_choice(feedback: str) -> bool:
-    print(f"Here is some feedback on the story:\n{feedback}")
-    print("Would you like me to try generating the story again? (y/n)")
-    choice = input("> ")
-    return choice.lower().startswith('y')
+# Rewrite the story using feedback from the judge or the user
+def revise_story(story: str, feedback: str) -> str:
+    prompt = f"""
+Here is a bedtime story for children ages 5-10:
 
-# Define main storytelling loop  
+{story}
+
+Rewrite it, applying this feedback while keeping it age-appropriate:
+
+{feedback}
+
+Return only the revised story.
+"""
+    return call_claude(prompt)
+
+# Run the full flow: draft, judge, revise, then optional user changes
 def tell_story():
     request = get_story_request()
-    
+    story = generate_story(request)
+    feedback = get_judge_feedback(story)
+    story = revise_story(story, feedback)
+    print(f"\nHere is your story:\n\n{story}\n")
+
+    # Keep revising until the user has no more changes
     while True:
-        story = generate_story(request)
-        print(f"\nHere is a story for you:\n\n{story}\n")
-        
-        feedback = get_judge_feedback(story)  
-        regen = get_user_regen_choice(feedback)
-        
-        if not regen:
+        change = input("Want any changes? (press Enter to finish) > ")
+        if not change.strip():
             break
-        
-    print("I hope you enjoyed the bedtime story! Sleep tight!")
+        story = revise_story(story, change)
+        print(f"\n{story}\n")
+
+    print("Sleep tight!")
 
 # Main program entry point
 if __name__ == "__main__":
-    print(system_diagram)
     tell_story()
